@@ -145,9 +145,12 @@ namespace OverpassLibrary
                     $"?format=json" +
                     $"&accept-language=ru-RU" +
                     $"&osm_ids=");
-                IEnumerable<OsmClass> currentRangeOfObjects =
-                    placesToLookUp.Skip(i * MAX_IDS_PER_POSTCODE_REQUEST).Take(MAX_IDS_PER_POSTCODE_REQUEST);
-                requestUrlBuilder.Append(string.Join(",", currentRangeOfObjects));
+                IEnumerable<string> idsOfCurrentObjsRange =
+                    placesToLookUp
+                    .Skip(i * MAX_IDS_PER_POSTCODE_REQUEST)
+                    .Take(MAX_IDS_PER_POSTCODE_REQUEST)
+                    .Select(x => x.OsmId);
+                requestUrlBuilder.Append(string.Join(",", idsOfCurrentObjsRange));
 
                 Thread.Sleep(1000); // снижение нагрузки на nominatim сервер для избежания 429
                 // если нужно рискнуть - комментируем строку или ставим таймаут меньше
