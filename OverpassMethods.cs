@@ -76,7 +76,6 @@ namespace OverpassLibrary
         /// <param name="placeTypes">Типы мест, которые необходимо найти</param>
         /// <returns>Список объектов класса OsmClass, представляющий места, найденные в прямоугольнике, 
         /// либо null, если места не найдены</returns>
-        /// <exception cref="JsonReaderException">Ошибка при чтении из ответа на запрос</exception>
         public static List<OsmClass> GetAllPlacesInBox(PointF northEastPoint, PointF southWestPoint,
             params string[] placeTypes)
         {
@@ -93,17 +92,10 @@ namespace OverpassLibrary
             dynamic placesJArray;
             using (StreamReader reader = new StreamReader(placesReq.GetResponse().GetResponseStream()))
             {
-                try
-                {
-                    JObject parsedResponse = JObject.Parse(reader.ReadToEnd());
-                    if (!parsedResponse.ContainsKey("data"))
-                        return places;
-                    placesJArray = parsedResponse["data"];
-                }
-                catch (JsonReaderException ex)
-                {
-                    throw new ArgumentException("Во время обработки запроса о точках произошла ошибка: " + ex.Message);
-                }
+                JObject parsedResponse = JObject.Parse(reader.ReadToEnd());
+                if (!parsedResponse.ContainsKey("data"))
+                    return places;
+                placesJArray = parsedResponse["data"];
             }
             if (placesJArray.Count == 0)
                 return null;
@@ -169,8 +161,8 @@ namespace OverpassLibrary
                             continue;
                         placesToLookUp
                             .First(x => x.OsmId == ((string)obj.osm_type).ToUpper()[0] + (string)obj.osm_id)
-                                                    // Nominatim API не возвращает ID вместе с литерой типа,
-                                                    // поэтому приходится совмещать их вручную
+                            // Nominatim API не возвращает ID вместе с литерой типа,
+                            // поэтому приходится совмещать их вручную
                             .PostCode = obj.address.postcode;
                     }
                 }
