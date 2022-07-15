@@ -4,8 +4,14 @@ using System.Text;
 
 namespace OverpassLibrary
 {
+    /// <summary>
+    /// Константы библиотеки OverpassLibrary
+    /// </summary>
     public static class OverpassConsts
     {
+        /// <summary>
+        /// Все типы мест, используемые в openstreetmap.ru
+        /// </summary>
         public readonly static string[] ALL_PLACES = new string[]
         {
             "root","democracy","administrative","town_hall","government","register_office","migration",
@@ -63,7 +69,9 @@ namespace OverpassLibrary
             "finance","bank","atm","accountant","pawnbroker","currencyexchange","money_lender","emergency","police",
             "fire_station","fire_hydrant","ambulance_station","emergency_phone"
         };
-
+        /// <summary>
+        /// Основные типы мест, используемые в openstreetmap.ru
+        /// </summary>
         public readonly static string[] MAIN_PLACES = new string[]
         {
             "democracy","administrative","town_hall","government","register_office","migration",

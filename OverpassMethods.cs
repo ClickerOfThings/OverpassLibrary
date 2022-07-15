@@ -11,6 +11,9 @@ using System.Threading;
 
 namespace OverpassLibrary
 {
+    /// <summary>
+    /// Статические методы для работы с OSM
+    /// </summary>
     public static class OverpassMethods
     {
         /// <summary>
@@ -157,7 +160,6 @@ namespace OverpassLibrary
                 WebRequest request = WebRequest.Create(requestUrlBuilder.ToString());
                 request.Headers.Add(HttpRequestHeader.UserAgent, "dotnet");
 
-                List<OsmClass> parsedObjsWithPostcodesFound = new List<OsmClass>(MAX_IDS_PER_POSTCODE_REQUEST);
                 using (StreamReader reader = new StreamReader(request.GetResponse().GetResponseStream()))
                 {
                     JArray parsedObjects = JArray.Parse(reader.ReadToEnd());
@@ -165,34 +167,12 @@ namespace OverpassLibrary
                     {
                         if (obj?.address?.postcode is null)
                             continue;
-                        // Nominatim API не возвращает ID вместе с литерой типа,
-                        // поэтому приходится совмещать их вручную
-                        string newOsmId = ((string)obj.osm_type).ToUpper()[0] + (string)obj.osm_id;
-                        parsedObjsWithPostcodesFound.Add(new OsmClass
-                        {
-                            OsmId = newOsmId,
-                            PostCode = obj.address.postcode
-                        });
+                        placesToLookUp
+                            .First(x => x.OsmId == ((string)obj.osm_type).ToUpper()[0] + (string)obj.osm_id)
+                                                    // Nominatim API не возвращает ID вместе с литерой типа,
+                                                    // поэтому приходится совмещать их вручную
+                            .PostCode = obj.address.postcode;
                     }
-                }
-                if (parsedObjsWithPostcodesFound.Count == 0)
-                    continue; // для текущих 50 объектов не нашлось индексов, могут найтись для следующих
-
-                // ищем в изначальном списке объектов для поиска те объекты, которые так же есть
-                // в списке спарсенных объектов, для которых нашёлся индекс
-                List<OsmClass> lookUpObjsWithPostcodesFound =
-                    placesToLookUp.Intersect(parsedObjsWithPostcodesFound).ToList();
-                parsedObjsWithPostcodesFound.Sort(); // для двоичного поиска
-                foreach (OsmClass lookUpObj in lookUpObjsWithPostcodesFound)
-                {
-                    // метод двоичного поиска возвращает индекс, обращаемся к списку как к массиву
-                    OsmClass parsedObjWithSameId = parsedObjsWithPostcodesFound[
-                        parsedObjsWithPostcodesFound.BinarySearch(
-                            new OsmClass
-                            {
-                                OsmId = lookUpObj.OsmId
-                            })];
-                    lookUpObj.PostCode = parsedObjWithSameId.PostCode;
                 }
             }
         }
