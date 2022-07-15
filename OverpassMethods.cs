@@ -14,12 +14,17 @@ namespace OverpassLibrary
     public static class OverpassMethods
     {
         /// <summary>
+        /// Максимальное количество ID на один запрос почтовых индексов. 
+        /// Nominatim API имеет ограничение в 50 ID-шников на один запрос
+        /// </summary>
+        const int MAX_IDS_PER_POSTCODE_REQUEST = 50;
+
+        /// <summary>
         /// Возвращает информацию о городах из Nominatim API
         /// </summary>
         /// <param name="cityNameInRussian">Название города на русском</param>
-        /// <returns>Объект класса OsmClass с заполненной информацией о названии, области и границах прямоугольника</returns>
-        /// <exception cref="ArgumentException">Город не может быть найден в базе данных OSM, 
-        /// либо найденный город не имеет необходимого OSM типа relation</exception>
+        /// <returns>Список найденных городов, либо null, если город не был найден или для города 
+        /// нет объекта типа relation</returns>
         /// <remarks>Поскольку возможны города с одинаковыми именами, метод возвращает список найденных городов, 
         /// а не отдельный город. Чтобы отличать такие города, следует использовать свойство <code>State</code>, 
         /// которое хранит в себе область города</remarks>
@@ -31,6 +36,7 @@ namespace OverpassLibrary
                 $"&addressdetails=1" +
                 $"&accept-language=ru-RU");
             reqForCity.Headers.Add(HttpRequestHeader.UserAgent, "dotnet");
+
             List<OsmClass> foundCities = new List<OsmClass>();
             dynamic cityJArray;
             using (StreamReader reader = new StreamReader(reqForCity.GetResponse().GetResponseStream()))
@@ -38,8 +44,7 @@ namespace OverpassLibrary
                 cityJArray = JArray.Parse(reader.ReadToEnd());
             }
             if (cityJArray.Count == 0)
-                //throw new ArgumentException("Города не существует");
-                return foundCities;
+                return null;
 
             foreach (dynamic city in cityJArray)
             {
@@ -57,20 +62,20 @@ namespace OverpassLibrary
                     float.Parse(cityBoundingBox[2].Value));
                 foundCities.Add(newCity);
             }
-            /*if (foundCities.Count == 0)
-                throw new ArgumentException("Ошибка поиска города. Города не существует, либо для города нет типа relation " +
-                    "в базе данных OSM");*/
+
             return foundCities;
         }
         /// <summary>
-        /// Найти все OSM точки в прямоугольнике из базы данных openstreetmap.ru
+        /// Найти все OSM места в прямоугольнике из базы данных openstreetmap.ru
         /// </summary>
         /// <param name="northEastPoint">Северо-восточный угол прямоугольника</param>
         /// <param name="southWestPoint">Юго-западный угол прямоугольника</param>
-        /// <param name="placeTypes">Типы точек, которые необходимо найти</param>
-        /// <returns>Список объектов класса OsmClass, представляющий точки, найденные в прямоугольнике</returns>
-        /// <exception cref="ArgumentException">Не найдены точки (пустой запрос от сервера)</exception>
-        public static List<OsmClass> GetAllPlacesInBox(PointF northEastPoint, PointF southWestPoint, params string[] placeTypes)
+        /// <param name="placeTypes">Типы мест, которые необходимо найти</param>
+        /// <returns>Список объектов класса OsmClass, представляющий места, найденные в прямоугольнике, 
+        /// либо null, если места не найдены</returns>
+        /// <exception cref="JsonReaderException">Ошибка при чтении из ответа на запрос</exception>
+        public static List<OsmClass> GetAllPlacesInBox(PointF northEastPoint, PointF southWestPoint,
+            params string[] placeTypes)
         {
             List<OsmClass> places = new List<OsmClass>();
             StringBuilder urlBuilder = new StringBuilder($"https://openstreetmap.ru/api/poi" +
@@ -79,13 +84,7 @@ namespace OverpassLibrary
                 $"&b={southWestPoint.X}&l={southWestPoint.Y}" +
                 $"&nclass=");
 
-            string lastPlaceInArray = placeTypes.Last();
-            foreach (string placeType in placeTypes)
-            {
-                urlBuilder.Append(placeType);
-                if (placeType != lastPlaceInArray)
-                    urlBuilder.Append(",");
-            }
+            urlBuilder.Append(string.Join(",", placeTypes));
 
             WebRequest placesReq = WebRequest.Create(urlBuilder.ToString());
             dynamic placesJArray;
@@ -104,7 +103,7 @@ namespace OverpassLibrary
                 }
             }
             if (placesJArray.Count == 0)
-                return places;
+                return null;
 
             foreach (dynamic place in placesJArray)
             {
@@ -126,39 +125,36 @@ namespace OverpassLibrary
                 };
                 places.Add(newObj);
             }
+
             List<OsmClass> objectsWithoutPostcodes = places.Where(x => string.IsNullOrEmpty(x.PostCode)).ToList();
             if (objectsWithoutPostcodes.Count != 0)
                 SetPostCodes(ref objectsWithoutPostcodes);
             places.RemoveAll(x => !x.IsAddressFull); // убираем места с неполными адресами
+
             return places;
         }
-        const int MAX_IDS_PER_POSTCODE_REQUEST = 50;
         /// <summary>
-        /// Установить почтовые индексы для точек, если имеются, из Nominatim API
+        /// Установить почтовые индексы, если они имеются, для мест из Nominatim API
         /// </summary>
-        /// <param name="objectsToLookUp">Список точек, для которых необходимо найти почтовые индексы</param>
-        /// <exception cref="ArgumentException"></exception>
-        public static void SetPostCodes(ref List<OsmClass> objectsToLookUp)
+        /// <param name="placesToLookUp">Список мест, для которых необходимо найти и установить почтовые индексы</param>
+        public static void SetPostCodes(ref List<OsmClass> placesToLookUp)
         {
-            int currentEndIndex = 0;
-            for (int currentIndex = 0; currentIndex < objectsToLookUp.Count;)
+            for (int i = 0; i <= placesToLookUp.Count / MAX_IDS_PER_POSTCODE_REQUEST; i++)
             {
                 StringBuilder requestUrlBuilder = new StringBuilder($"https://nominatim.openstreetmap.org/lookup" +
                     $"?format=json" +
                     $"&accept-language=ru-RU" +
                     $"&osm_ids=");
-                currentEndIndex = Math.Clamp(currentIndex + MAX_IDS_PER_POSTCODE_REQUEST, 0, objectsToLookUp.Count);
-                for (; currentIndex < currentEndIndex; currentIndex++)
-                {
-                    requestUrlBuilder.Append(objectsToLookUp[currentIndex].OsmId);
-                    if (objectsToLookUp[currentIndex] != objectsToLookUp[currentEndIndex - 1])
-                        requestUrlBuilder.Append(',');
-                }
+                IEnumerable<OsmClass> currentRangeOfObjects =
+                    placesToLookUp.Skip(i * MAX_IDS_PER_POSTCODE_REQUEST).Take(MAX_IDS_PER_POSTCODE_REQUEST);
+                requestUrlBuilder.Append(string.Join(",", currentRangeOfObjects));
+
                 Thread.Sleep(1000); // снижение нагрузки на nominatim сервер для избежания 429
-                // если нужно рискнуть - комментируем строку или ставим таймаут меньше :)
+                // если нужно рискнуть - комментируем строку или ставим таймаут меньше
                 WebRequest request = WebRequest.Create(requestUrlBuilder.ToString());
                 request.Headers.Add(HttpRequestHeader.UserAgent, "dotnet");
-                List<OsmClass> parsedObjsWithPostcodesFound = new List<OsmClass>(50);
+
+                List<OsmClass> parsedObjsWithPostcodesFound = new List<OsmClass>(MAX_IDS_PER_POSTCODE_REQUEST);
                 using (StreamReader reader = new StreamReader(request.GetResponse().GetResponseStream()))
                 {
                     JArray parsedObjects = JArray.Parse(reader.ReadToEnd());
@@ -166,6 +162,8 @@ namespace OverpassLibrary
                     {
                         if (obj?.address?.postcode is null)
                             continue;
+                        // Nominatim API не возвращает ID вместе с литерой типа,
+                        // поэтому приходится совмещать их вручную
                         string newOsmId = ((string)obj.osm_type).ToUpper()[0] + (string)obj.osm_id;
                         parsedObjsWithPostcodesFound.Add(new OsmClass
                         {
@@ -175,21 +173,23 @@ namespace OverpassLibrary
                     }
                 }
                 if (parsedObjsWithPostcodesFound.Count == 0)
-                    /*throw new ArgumentException("Пустой ответ от API. Вероятнее всего, неправильный ID или " +
-                        "тип объекта");*/ // наверное, довольно радикально на каждый пустой запрос возвращать исключение
-                    continue;
+                    continue; // для текущих 50 объектов не нашлось индексов, могут найтись для следующих
+
+                // ищем в изначальном списке объектов для поиска те объекты, которые так же есть
+                // в списке спарсенных объектов, для которых нашёлся индекс
                 List<OsmClass> lookUpObjsWithPostcodesFound =
-                    objectsToLookUp.Intersect(parsedObjsWithPostcodesFound).ToList();
+                    placesToLookUp.Intersect(parsedObjsWithPostcodesFound).ToList();
                 parsedObjsWithPostcodesFound.Sort(); // для двоичного поиска
-                for (int i = 0; i < lookUpObjsWithPostcodesFound.Count; i++)
+                foreach (OsmClass lookUpObj in lookUpObjsWithPostcodesFound)
                 {
+                    // метод двоичного поиска возвращает индекс, обращаемся к списку как к массиву
                     OsmClass parsedObjWithSameId = parsedObjsWithPostcodesFound[
-                        parsedObjsWithPostcodesFound.BinarySearch(new OsmClass
-                        {
-                            OsmId = lookUpObjsWithPostcodesFound[i].OsmId
-                        })];
-                    lookUpObjsWithPostcodesFound[i].PostCode =
-                        parsedObjWithSameId.PostCode;
+                        parsedObjsWithPostcodesFound.BinarySearch(
+                            new OsmClass
+                            {
+                                OsmId = lookUpObj.OsmId
+                            })];
+                    lookUpObj.PostCode = parsedObjWithSameId.PostCode;
                 }
             }
         }
