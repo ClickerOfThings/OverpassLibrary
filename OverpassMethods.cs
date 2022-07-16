@@ -26,7 +26,7 @@ namespace OverpassLibrary
         /// Возвращает информацию о городах из Nominatim API
         /// </summary>
         /// <param name="cityNameInRussian">Название города на русском</param>
-        /// <returns>Список найденных городов, либо null, если город не был найден или для города 
+        /// <returns>Список найденных городов, либо пустой список, если город не был найден или для города 
         /// нет объекта типа relation</returns>
         /// <remarks>Поскольку возможны города с одинаковыми именами, метод возвращает список найденных городов, 
         /// а не отдельный город. Чтобы отличать такие города, следует использовать свойство <code>State</code>, 
@@ -46,8 +46,6 @@ namespace OverpassLibrary
             {
                 cityJArray = JArray.Parse(reader.ReadToEnd());
             }
-            if (cityJArray.Count == 0)
-                return null;
 
             foreach (dynamic city in cityJArray)
             {
@@ -74,8 +72,7 @@ namespace OverpassLibrary
         /// <param name="northEastPoint">Северо-восточный угол прямоугольника</param>
         /// <param name="southWestPoint">Юго-западный угол прямоугольника</param>
         /// <param name="placeTypes">Типы мест, которые необходимо найти</param>
-        /// <returns>Список объектов класса OsmClass, представляющий места, найденные в прямоугольнике, 
-        /// либо null, если места не найдены</returns>
+        /// <returns>Список объектов класса OsmClass, представляющий места, найденные в прямоугольнике</returns>
         public static List<OsmClass> GetAllPlacesInBox(PointF northEastPoint, PointF southWestPoint,
             params string[] placeTypes)
         {
@@ -97,8 +94,6 @@ namespace OverpassLibrary
                     return places;
                 placesJArray = parsedResponse["data"];
             }
-            if (placesJArray.Count == 0)
-                return null;
 
             foreach (dynamic place in placesJArray)
             {
