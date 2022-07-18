@@ -155,9 +155,9 @@ namespace OverpassLibrary
                         if (obj?.address?.postcode is null)
                             continue;
                         placesToLookUp
+                            // - - - - - - - - - - Nominatim API не возвращает ID вместе с литерой типа,
+                            // - - - - - - - - - - поэтому приходится совмещать их вручную
                             .First(x => x.OsmId == ((string)obj.osm_type).ToUpper()[0] + (string)obj.osm_id)
-                            // Nominatim API не возвращает ID вместе с литерой типа,
-                            // поэтому приходится совмещать их вручную
                             .PostCode = obj.address.postcode;
                     }
                 }
