@@ -69,6 +69,7 @@ namespace OverpassLibrary
             "finance","bank","atm","accountant","pawnbroker","currencyexchange","money_lender","emergency","police",
             "fire_station","fire_hydrant","ambulance_station","emergency_phone"
         };
+
         /// <summary>
         /// Основные типы мест, используемые в openstreetmap.ru
         /// </summary>

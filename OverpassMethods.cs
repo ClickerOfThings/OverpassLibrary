@@ -66,6 +66,7 @@ namespace OverpassLibrary
 
             return foundCities;
         }
+
         /// <summary>
         /// Найти все OSM места в прямоугольнике из базы данных openstreetmap.ru
         /// </summary>
@@ -123,6 +124,7 @@ namespace OverpassLibrary
 
             return places;
         }
+
         /// <summary>
         /// Установить почтовые индексы, если они имеются, для мест из Nominatim API
         /// </summary>
