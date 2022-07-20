@@ -131,18 +131,22 @@ namespace OverpassLibrary
         /// <param name="placesToLookUp">Список мест, для которых необходимо найти и установить почтовые индексы</param>
         public static void SetPostCodes(ref List<OsmClass> placesToLookUp)
         {
-            for (int i = 0; i <= placesToLookUp.Count / MAX_IDS_PER_POSTCODE_REQUEST; i++)
+            // Вычисляем, сколько шагов нужно сделать, чтобы просмотреть все места
+            // из списка. Число округляется в большую сторону
+            int placesSteps = (int)Math.Ceiling((decimal)placesToLookUp.Count / MAX_IDS_PER_POSTCODE_REQUEST);
+            for (int i = 0; i < placesSteps; i++)
             {
                 StringBuilder requestUrlBuilder = new StringBuilder($"https://nominatim.openstreetmap.org/lookup" +
                     $"?format=json" +
                     $"&accept-language=ru-RU" +
                     $"&osm_ids=");
-                IEnumerable<string> idsOfCurrentObjsRange =
+
+                IEnumerable<string> idsOfCurrentPlacesInRange =
                     placesToLookUp
                     .Skip(i * MAX_IDS_PER_POSTCODE_REQUEST)
                     .Take(MAX_IDS_PER_POSTCODE_REQUEST)
                     .Select(x => x.OsmId);
-                requestUrlBuilder.Append(string.Join(",", idsOfCurrentObjsRange));
+                requestUrlBuilder.Append(string.Join(",", idsOfCurrentPlacesInRange));
 
                 Thread.Sleep(1000); // снижение нагрузки на nominatim сервер для избежания 429
                 // если нужно рискнуть - комментируем строку или ставим таймаут меньше
@@ -157,8 +161,8 @@ namespace OverpassLibrary
                         if (obj?.address?.postcode is null)
                             continue;
                         placesToLookUp
-                            // - - - - - - - - - - Nominatim API не возвращает ID вместе с литерой типа,
-                            // - - - - - - - - - - поэтому приходится совмещать их вручную
+                            // Nominatim API не возвращает ID вместе с литерой типа,
+                            // поэтому приходится совмещать их вручную
                             .First(x => x.OsmId == ((string)obj.osm_type).ToUpper()[0] + (string)obj.osm_id)
                             .PostCode = obj.address.postcode;
                     }
