@@ -5,13 +5,13 @@ Overpass Library является библиотекой для извлечен
 Overpass Library использует фреймворк .NET Core и библиотеку Json.NET.
 
 ## Использование
-Найти список городов по названию:
+### Найти список городов по названию:
 ```c#
 OverpassMethods.GetCityInfo("Москва");
 ```
 Метод найдёт все города с названием "Москва" и информацию о них при помощи Nominatim API.
 
-Найти все места в прямоугольнике:
+### Найти все места в прямоугольнике:
 ```c#
 // Либо задать точки прямоугольника вручную
 PointF northEastPoint = new PointF(55.9577717f, 37.9674277f);
@@ -36,5 +36,7 @@ string[] placesTypes = OverpassConsts.MAIN_PLACES; // Основные виды 
 OverpassMethods.GetAllPlacesInBox(northEastPoint, southWestPoint, placesTypes);
 ```
 Метод найдёт все места в прямоугольнике с определённым типом при помощи API сайта openstreetmap.ru.
+
+---
 
 По техническим причинам, API сайта openstreetmap.ru не может вернуть более 1000 точек за один запрос.
