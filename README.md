@@ -22,6 +22,7 @@ OsmClass foundCity = OverpassMethods.GetCityInfo("Москва").First();
 PointF northEastPoint = foundCity.CityNorthEast;
 PointF southWestPoint = foundCity.CitySouthWest;
 
+
 // Либо вручную указать типы мест
 string[] placesTypes = new string[] {
 "school", "shop", "kiosk"
@@ -30,6 +31,7 @@ string[] placesTypes = new string[] {
 // Либо воспользоваться одной из констант библиотеки
 string[] placesTypes = OverpassConsts.ALL_PLACES; // Все виды мест
 string[] placesTypes = OverpassConsts.MAIN_PLACES; // Основные виды мест
+
 
 OverpassMethods.GetAllPlacesInBox(northEastPoint, southWestPoint, placesTypes);
 ```
